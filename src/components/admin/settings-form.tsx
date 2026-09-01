@@ -1,6 +1,7 @@
 "use client";
 
 import { updateWeddingAction } from "@/actions/wedding";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,16 +36,33 @@ export function SettingsForm({ wedding }: { wedding: Wedding }) {
           defaultValue={settings.couple_names || wedding.name}
         />
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <div>
           <Label>Data</Label>
           <Input name="date" type="date" defaultValue={wedding.date || ""} />
         </div>
         <div>
-          <Label>Horário da cerimônia</Label>
+          <Label>Chegada dos convidados</Label>
+          <Input
+            name="arrival_time"
+            defaultValue={settings.arrival_time || ""}
+            placeholder="17:45"
+          />
+        </div>
+        <div>
+          <Label>Chegada da cerimônia (padrinhos)</Label>
+          <Input
+            name="ceremony_arrival_time"
+            defaultValue={settings.ceremony_arrival_time || ""}
+            placeholder="17:15"
+          />
+        </div>
+        <div>
+          <Label>Início do cortejo</Label>
           <Input
             name="ceremony_time"
             defaultValue={settings.ceremony_time || ""}
+            placeholder="18:15"
           />
         </div>
       </div>
@@ -53,12 +71,21 @@ export function SettingsForm({ wedding }: { wedding: Wedding }) {
         <Input name="location" defaultValue={wedding.location || ""} />
       </div>
       <div>
+        <Label>Endereço</Label>
+        <Input name="address" defaultValue={settings.address || ""} />
+      </div>
+      <div>
         <Label>Link do mapa</Label>
         <Input name="map_url" defaultValue={settings.map_url || ""} />
       </div>
       <div>
-        <Label>URL da imagem hero</Label>
-        <Input name="hero_image" defaultValue={settings.hero_image || ""} />
+        <ImageUploadField
+          name="hero_image"
+          label="Imagem de capa (hero)"
+          defaultValue={settings.hero_image || ""}
+          folder="hero"
+          hint="Toque para escolher da galeria/câmera ou cole uma URL"
+        />
       </div>
       <div>
         <Label>Mensagem de boas-vindas</Label>

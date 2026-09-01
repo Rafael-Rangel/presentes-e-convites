@@ -1,18 +1,5 @@
-import { dbQuery } from "@/lib/db";
+import { createPublicSupabase } from "@/lib/supabase/public";
 import { NextRequest, NextResponse } from "next/server";
-
-const PAID_EVENTS = new Set([
-  "PAYMENT_RECEIVED",
-  "PAYMENT_CONFIRMED",
-  "PAYMENT_RECEIVED_IN_CASH",
-]);
-
-const FAILED_EVENTS = new Set([
-  "PAYMENT_OVERDUE",
-  "PAYMENT_DELETED",
-  "PAYMENT_REFUNDED",
-  "PAYMENT_REFUND_IN_PROGRESS",
-]);
 
 export async function POST(request: NextRequest) {
   const token =
@@ -34,31 +21,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    if (PAID_EVENTS.has(event) || ["RECEIVED", "CONFIRMED"].includes(payment?.status)) {
-      const rows = await dbQuery<{ id: string; gift_id: string }>(
-        `update public.gift_contributions
-         set payment_status = 'paid',
-             paid_at = coalesce(paid_at, now())
-         where asaas_payment_id = $1
-            or id::text = $2
-         returning id, gift_id`,
-        [paymentId, externalReference || ""],
-      );
+    const supabase = createPublicSupabase();
+    const { error } = await supabase.rpc("mark_contribution_from_asaas", {
+      p_asaas_payment_id: paymentId,
+      p_external_reference: externalReference || "",
+      p_event: event,
+      p_status: String(payment?.status || ""),
+    });
 
-      if (rows[0]?.gift_id) {
-        await dbQuery("select public.refresh_gift_completion($1)", [rows[0].gift_id]);
-      }
-    } else if (FAILED_EVENTS.has(event)) {
-      await dbQuery(
-        `update public.gift_contributions
-         set payment_status = case
-           when payment_status = 'paid' then payment_status
-           else 'failed'
-         end
-         where asaas_payment_id = $1`,
-        [paymentId],
-      );
-    }
+    if (error) throw new Error(error.message);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -15,7 +15,10 @@ export default async function ConvitesPage() {
     <InvitesManager
       guests={guests}
       contributions={contributions}
-      appUrl={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
+      appUrl={
+        process.env.NEXT_PUBLIC_APP_URL ||
+        "https://rafael-adrielly-ivory.vercel.app"
+      }
     />
   );
 }

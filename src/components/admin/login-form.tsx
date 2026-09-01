@@ -5,10 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 
 export function LoginForm() {
-  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const clockError =
+    searchParams.get("erro") === "relogio"
+      ? "O relógio do Windows está dessincronizado. Ative “Definir hora automaticamente” e entre de novo."
+      : null;
+  const [error, setError] = useState<string | null>(clockError);
   const [pending, startTransition] = useTransition();
 
   return (
@@ -38,8 +44,10 @@ export function LoginForm() {
           id="password"
           name="password"
           type="password"
+          inputMode="numeric"
+          pattern="[0-9]*"
           required
-          placeholder="••••••••"
+          placeholder="Senha numérica"
           autoComplete="current-password"
         />
       </div>

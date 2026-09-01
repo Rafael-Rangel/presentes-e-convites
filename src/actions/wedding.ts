@@ -15,9 +15,14 @@ export async function updateWeddingAction(formData: FormData) {
     welcome_message: String(formData.get("welcome_message") || "").trim(),
     story: String(formData.get("story") || "").trim(),
     ceremony_time: String(formData.get("ceremony_time") || "").trim(),
+    arrival_time: String(formData.get("arrival_time") || "").trim(),
+    ceremony_arrival_time: String(
+      formData.get("ceremony_arrival_time") || "",
+    ).trim(),
     reception_time: String(formData.get("reception_time") || "").trim(),
     dress_code: String(formData.get("dress_code") || "").trim(),
     additional_info: String(formData.get("additional_info") || "").trim(),
+    address: String(formData.get("address") || "").trim(),
     map_url: String(formData.get("map_url") || "").trim(),
     hero_image: String(formData.get("hero_image") || "").trim(),
     gallery: String(formData.get("gallery") || "")

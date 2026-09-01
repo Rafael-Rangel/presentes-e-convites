@@ -50,15 +50,28 @@ export function toWebpPath(src: string) {
   return src.replace(/\.(jpe?g|png)$/i, ".webp");
 }
 
-export const HERO_PHOTO = WEDDING_PHOTOS[8]; // IMG_7646
-export const STORY_ROW_A = WEDDING_PHOTOS.slice(0, 10);
-export const STORY_ROW_B = WEDDING_PHOTOS.slice(10, 20);
-export const GALLERY_PHOTOS = WEDDING_PHOTOS.slice(0, 12);
+export const HERO_PHOTO = "/wedding/hero-invite.webp";
+
+/** Fotos do carrossel duplo do convite (ambas as faixas) */
+export const CAROUSEL_PHOTOS = [
+  "/wedding/carousel-01.webp",
+  "/wedding/carousel-02.webp",
+  "/wedding/carousel-03.webp",
+  "/wedding/carousel-04.webp",
+  "/wedding/carousel-05.webp",
+  "/wedding/carousel-06.webp",
+  "/wedding/carousel-07.webp",
+  "/wedding/carousel-08.webp",
+] as const;
+
+/** Mesmas fotos nos dois carrosséis; ordem invertida na faixa B */
+export const STORY_ROW_A = [...CAROUSEL_PHOTOS];
+export const STORY_ROW_B = [...CAROUSEL_PHOTOS].reverse();
+
+export const GALLERY_PHOTOS = [...CAROUSEL_PHOTOS];
 export const STRIP_PHOTOS = [
-  WEDDING_PHOTOS[2],
-  WEDDING_PHOTOS[5],
-  WEDDING_PHOTOS[10],
-  WEDDING_PHOTOS[15],
-  WEDDING_PHOTOS[22],
-  WEDDING_PHOTOS[28],
+  CAROUSEL_PHOTOS[0],
+  CAROUSEL_PHOTOS[2],
+  CAROUSEL_PHOTOS[4],
+  CAROUSEL_PHOTOS[6],
 ];

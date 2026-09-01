@@ -1,5 +1,6 @@
 import { LoginForm } from "@/components/admin/login-form";
 import { HERO_PHOTO } from "@/lib/wedding-media";
+import { Suspense } from "react";
 
 export default function AdminLoginPage() {
   return (
@@ -19,7 +20,9 @@ export default function AdminLoginPage() {
           <h1 className="mt-2 font-display text-4xl text-terra-deep">Entrar</h1>
           <p className="mt-2 text-sm text-muted">Painel do casamento</p>
         </div>
-        <LoginForm />
+        <Suspense fallback={<p className="text-center text-sm text-muted">Carregando...</p>}>
+          <LoginForm />
+        </Suspense>
       </div>
     </main>
   );

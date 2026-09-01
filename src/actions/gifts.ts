@@ -90,3 +90,15 @@ export async function toggleGiftStatusAction(id: string, status: string) {
   revalidatePath("/presentes");
   return { success: true };
 }
+
+export async function confirmPixContributionAction(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_pix_contribution_paid", {
+    p_contribution_id: id,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/admin");
+  revalidatePath("/admin/presentes");
+  revalidatePath("/presentes");
+  return { success: true };
+}

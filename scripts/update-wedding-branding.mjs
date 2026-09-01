@@ -29,9 +29,14 @@ const settings = {
   welcome_message:
     "Com o coração cheio de gratidão, queremos compartilhar com você o início da nossa história para sempre.",
   story:
-    "Do pedido ao “sim”, cada instante conosco ganhou mais luz. Rafael e Adrielly celebram o amor que cresceu em encontros, risos e planos — e agora convidam você a viver esse capítulo ao lado deles.",
-  ceremony_time: "16:00",
-  reception_time: "18:00",
+    "Do pedido ao “sim”, cada instante conosco ganhou mais luz. Rafael e Adrielly celebram o amor que cresceu em encontros, risos e planos, e agora convidam você a viver esse capítulo ao lado deles.",
+  ceremony_time: "17:00",
+  arrival_time: "16:00",
+  reception_time: "",
+  address:
+    "Estr. do Aterrado do Rio, 105 - Guaratiba, Rio de Janeiro - RJ, 23035-290",
+  map_url:
+    "https://www.google.com/maps/search/?api=1&query=Casa%20de%20Festas%20Spa%C3%A7o%20Green%20Guaratiba",
   dress_code: "Esporte fino",
   additional_info:
     "Chegue com carinho e vontade de celebrar. Sua presença é o presente mais especial.",
@@ -52,7 +57,7 @@ await client.connect();
 await client.query(
   `update public.weddings
    set name = $1,
-       location = coalesce(nullif(location, ''), 'A definir'),
+       location = 'Casa de Festas Spaço Green',
        settings = $2::jsonb
    where id = '11111111-1111-1111-1111-111111111111'`,
   ["Rafael & Adrielly", JSON.stringify(settings)],

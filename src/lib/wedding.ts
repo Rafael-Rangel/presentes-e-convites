@@ -1,4 +1,6 @@
+import { createGuestSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
+import { handleSupabaseError } from "@/lib/supabase/errors";
 import type { Gift, GiftContribution, GiftWithProgress, Guest, Wedding } from "@/lib/types";
 
 export const DEFAULT_WEDDING_ID =
@@ -11,7 +13,7 @@ export async function getWedding() {
     .select("*")
     .eq("id", DEFAULT_WEDDING_ID)
     .single();
-  if (error) throw error;
+  await handleSupabaseError(error);
   return data as Wedding;
 }
 
@@ -22,11 +24,12 @@ export async function getAdminWeddingId() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("wedding_id")
     .eq("id", user.id)
     .maybeSingle();
+  await handleSupabaseError(error, { admin: true });
 
   return data?.wedding_id || DEFAULT_WEDDING_ID;
 }
@@ -38,19 +41,40 @@ export async function listGuests(weddingId: string) {
     .select("*")
     .eq("wedding_id", weddingId)
     .order("name");
-  if (error) throw error;
+  await handleSupabaseError(error, { admin: true });
   return (data || []) as Guest[];
 }
 
 export async function getGuestBySlug(slug: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let decoded = slug;
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch {
+    decoded = slug;
+  }
+  const normalized = createGuestSlug(decoded);
+
+  const first = await supabase
     .from("guests")
     .select("*")
-    .eq("slug", slug)
+    .eq("slug", decoded)
     .maybeSingle();
-  if (error) throw error;
-  return data as Guest | null;
+  await handleSupabaseError(first.error);
+
+  if (first.data) return first.data as Guest;
+
+  if (normalized && normalized !== decoded) {
+    const second = await supabase
+      .from("guests")
+      .select("*")
+      .eq("slug", normalized)
+      .maybeSingle();
+    await handleSupabaseError(second.error);
+    return (second.data as Guest | null) ?? null;
+  }
+
+  return null;
 }
 
 export async function listGifts(weddingId: string, publicOnly = false) {
@@ -62,7 +86,7 @@ export async function listGifts(weddingId: string, publicOnly = false) {
   const { data, error } = await query
     .order("is_priority", { ascending: false })
     .order("name");
-  if (error) throw error;
+  await handleSupabaseError(error, { admin: !publicOnly });
   return (data || []) as Gift[];
 }
 
@@ -74,7 +98,20 @@ export async function listPaidContributions(weddingId: string) {
     .eq("wedding_id", weddingId)
     .eq("payment_status", "paid")
     .order("paid_at", { ascending: false });
-  if (error) throw error;
+  await handleSupabaseError(error);
+  return (data || []) as GiftContribution[];
+}
+
+export async function listPendingPixContributions(weddingId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("gift_contributions")
+    .select("*")
+    .eq("wedding_id", weddingId)
+    .eq("payment_method", "pix")
+    .eq("payment_status", "pending")
+    .order("created_at", { ascending: false });
+  await handleSupabaseError(error, { admin: true });
   return (data || []) as GiftContribution[];
 }
 

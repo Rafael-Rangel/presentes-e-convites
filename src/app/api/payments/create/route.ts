@@ -1,5 +1,7 @@
+import { cardChargeAmount } from "@/lib/asaas-fees";
 import { createAsaasPayment } from "@/lib/asaas";
-import { dbQuery } from "@/lib/db";
+import { buildPixPayload, pixQrImageUrl } from "@/lib/nubank-pix";
+import { createPublicSupabase } from "@/lib/supabase/public";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -7,31 +9,11 @@ const schema = z.object({
   giftId: z.string().uuid(),
   amount: z.number().positive(),
   payerName: z.string().min(2),
-  payerEmail: z.string().email().optional().nullable(),
-  payerPhone: z.string().optional().nullable(),
+  payerPhone: z.string().min(10, "Telefone obrigatório"),
   payerCpfCnpj: z.string().min(11, "CPF/CNPJ obrigatório"),
   guestSlug: z.string().optional().nullable(),
   paymentMethod: z.enum(["pix", "credit", "debit"]),
   remoteIp: z.string().optional().nullable(),
-  creditCard: z
-    .object({
-      holderName: z.string().min(2),
-      number: z.string().min(13),
-      expiryMonth: z.string().min(1),
-      expiryYear: z.string().min(2),
-      ccv: z.string().min(3),
-    })
-    .optional(),
-  creditCardHolderInfo: z
-    .object({
-      name: z.string().min(2),
-      email: z.string().email(),
-      cpfCnpj: z.string().min(11),
-      postalCode: z.string().min(8),
-      addressNumber: z.string().min(1),
-      phone: z.string().min(10),
-    })
-    .optional(),
 });
 
 function clientIp(request: NextRequest) {
@@ -44,52 +26,63 @@ function clientIp(request: NextRequest) {
   );
 }
 
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 export async function POST(request: NextRequest) {
   let contributionId: string | null = null;
+  const supabase = createPublicSupabase();
 
   try {
     const body = await request.json();
     const input = schema.parse(body);
+    const phone = onlyDigits(input.payerPhone);
+    const cpf = onlyDigits(input.payerCpfCnpj);
 
-    if (input.paymentMethod === "credit") {
-      if (!input.creditCard || !input.creditCardHolderInfo) {
-        return NextResponse.json(
-          { error: "Preencha os dados do cartão para pagar." },
-          { status: 400 },
-        );
-      }
-      if (!input.payerEmail && !input.creditCardHolderInfo.email) {
-        return NextResponse.json(
-          { error: "E-mail é obrigatório para pagamento com cartão." },
-          { status: 400 },
-        );
-      }
+    if (phone.length < 10) {
+      return NextResponse.json(
+        { error: "Informe um telefone válido com DDD." },
+        { status: 400 },
+      );
+    }
+    if (cpf.length < 11) {
+      return NextResponse.json(
+        { error: "Informe um CPF válido." },
+        { status: 400 },
+      );
     }
 
-    const gifts = await dbQuery<{
-      id: string;
-      wedding_id: string;
-      name: string;
-      price: string;
-      status: string;
-    }>(
-      "select id, wedding_id, name, price, status from public.gifts where id = $1",
-      [input.giftId],
-    );
+    const { data: gift, error: giftError } = await supabase
+      .from("gifts")
+      .select("id, wedding_id, name, price, status")
+      .eq("id", input.giftId)
+      .maybeSingle();
 
-    const gift = gifts[0];
+    if (giftError) throw new Error(giftError.message);
     if (!gift || gift.status === "hidden") {
       return NextResponse.json({ error: "Presente não encontrado." }, { status: 404 });
     }
 
-    const raisedRows = await dbQuery<{ raised: string }>(
-      `select coalesce(sum(amount),0)::text as raised
-       from public.gift_contributions
-       where gift_id = $1 and payment_status = 'paid'`,
-      [gift.id],
+    const { data: paidRows, error: paidError } = await supabase
+      .from("gift_contributions")
+      .select("amount")
+      .eq("gift_id", gift.id)
+      .eq("payment_status", "paid");
+
+    if (paidError) throw new Error(paidError.message);
+
+    const raised = (paidRows || []).reduce(
+      (sum, row) => sum + Number(row.amount || 0),
+      0,
     );
-    const raised = Number(raisedRows[0]?.raised || 0);
     const remaining = Number(gift.price) - raised;
+    if (input.amount < 5) {
+      return NextResponse.json(
+        { error: "O valor mínimo é R$ 5,00." },
+        { status: 400 },
+      );
+    }
     if (input.amount > remaining + 0.009) {
       return NextResponse.json(
         { error: `Valor máximo restante: R$ ${remaining.toFixed(2)}` },
@@ -99,21 +92,13 @@ export async function POST(request: NextRequest) {
 
     let guestId: string | null = null;
     if (input.guestSlug) {
-      const guests = await dbQuery<{ id: string }>(
-        "select id from public.guests where slug = $1 limit 1",
-        [input.guestSlug],
-      );
-      guestId = guests[0]?.id || null;
+      const { data: guest } = await supabase
+        .from("guests")
+        .select("id")
+        .eq("slug", input.guestSlug)
+        .maybeSingle();
+      guestId = guest?.id || null;
     }
-
-    // Débito não existe como billingType na Asaas — usa checkout hospedado (UNDEFINED).
-    // Crédito cobra direto. Pix gera QR.
-    const billingType =
-      input.paymentMethod === "pix"
-        ? "PIX"
-        : input.paymentMethod === "credit"
-          ? "CREDIT_CARD"
-          : "UNDEFINED";
 
     const paymentMethodDb =
       input.paymentMethod === "pix"
@@ -122,103 +107,109 @@ export async function POST(request: NextRequest) {
           ? "debit"
           : "credit";
 
-    const contributionRows = await dbQuery<{ id: string }>(
-      `insert into public.gift_contributions
-        (wedding_id, gift_id, guest_id, payer_name, amount, payment_method, payment_status)
-       values ($1,$2,$3,$4,$5,$6,'pending')
-       returning id`,
-      [
-        gift.wedding_id,
-        gift.id,
-        guestId,
-        input.payerName,
-        input.amount,
-        paymentMethodDb,
-      ],
+    const { data: createdId, error: createError } = await supabase.rpc(
+      "create_pending_contribution",
+      {
+        p_wedding_id: gift.wedding_id,
+        p_gift_id: gift.id,
+        p_guest_id: guestId,
+        p_payer_name: input.payerName,
+        p_amount: input.amount,
+        p_payment_method: paymentMethodDb,
+        p_payer_phone: phone,
+        p_payer_cpf: cpf,
+      },
     );
 
-    contributionId = contributionRows[0].id;
+    if (createError) throw new Error(createError.message);
+    contributionId = createdId as string;
+
+    if (input.paymentMethod === "pix") {
+      const pixCopyPaste = buildPixPayload({
+        amount: input.amount,
+        txid: contributionId.replace(/-/g, "").slice(0, 25),
+        description: gift.name,
+      });
+      const pixQrCode = pixQrImageUrl(pixCopyPaste);
+
+      const { error: finalizeError } = await supabase.rpc(
+        "finalize_contribution_payment",
+        {
+          p_contribution_id: contributionId,
+          p_asaas_payment_id: `nubank-${contributionId.slice(0, 8)}`,
+          p_pix_qr_code: pixQrCode,
+          p_pix_copy_paste: pixCopyPaste,
+          p_invoice_url: "",
+          p_asaas_status: "PENDING",
+        },
+      );
+
+      if (finalizeError) throw new Error(finalizeError.message);
+
+      return NextResponse.json({
+        contributionId,
+        status: "PENDING",
+        billingType: "PIX",
+        pixQrCode,
+        pixCopyPaste,
+        invoiceUrl: null,
+        requiresRedirect: false,
+      });
+    }
+
+    const charged = cardChargeAmount(input.amount, "credit");
+    const asaasEmail = `presente.${cpf}@asaas.guest`;
 
     const asaas = await createAsaasPayment({
       customerName: input.payerName,
-      customerEmail: input.payerEmail || input.creditCardHolderInfo?.email,
-      customerPhone: input.payerPhone || input.creditCardHolderInfo?.phone,
-      customerCpfCnpj: input.payerCpfCnpj || input.creditCardHolderInfo?.cpfCnpj,
-      value: input.amount,
-      billingType,
+      customerEmail: asaasEmail,
+      customerPhone: phone,
+      customerCpfCnpj: cpf,
+      value: charged,
+      billingType: "UNDEFINED",
       description: `Presente: ${gift.name}`,
       externalReference: contributionId,
       remoteIp: input.remoteIp || clientIp(request),
-      creditCard: input.creditCard,
-      creditCardHolderInfo: input.creditCardHolderInfo
-        ? {
-            ...input.creditCardHolderInfo,
-            email: input.creditCardHolderInfo.email || input.payerEmail || "",
-            phone: input.creditCardHolderInfo.phone || input.payerPhone || "",
-          }
-        : undefined,
     });
 
-    await dbQuery(
-      `update public.gift_contributions
-       set asaas_payment_id = $1,
-           pix_qr_code = $2,
-           pix_copy_paste = $3,
-           invoice_url = $4,
-           payment_status = case
-             when $5 in ('RECEIVED','CONFIRMED') then 'paid'
-             else payment_status
-           end,
-           paid_at = case
-             when $5 in ('RECEIVED','CONFIRMED') then now()
-             else paid_at
-           end
-       where id = $6`,
-      [
-        asaas.payment.id,
-        asaas.pixQrCode,
-        asaas.pixCopyPaste,
-        asaas.invoiceUrl,
-        asaas.payment.status,
-        contributionId,
-      ],
+    const { error: finalizeError } = await supabase.rpc(
+      "finalize_contribution_payment",
+      {
+        p_contribution_id: contributionId,
+        p_asaas_payment_id: asaas.payment.id,
+        p_pix_qr_code: asaas.pixQrCode,
+        p_pix_copy_paste: asaas.pixCopyPaste,
+        p_invoice_url: asaas.invoiceUrl,
+        p_asaas_status: asaas.payment.status,
+      },
     );
 
-    if (["RECEIVED", "CONFIRMED"].includes(asaas.payment.status)) {
-      await dbQuery("select public.refresh_gift_completion($1)", [gift.id]);
-    }
+    if (finalizeError) throw new Error(finalizeError.message);
 
     return NextResponse.json({
       contributionId,
       paymentId: asaas.payment.id,
       status: asaas.payment.status,
-      billingType,
+      billingType: "UNDEFINED",
       pixQrCode: asaas.pixQrCode,
       pixCopyPaste: asaas.pixCopyPaste,
       invoiceUrl: asaas.invoiceUrl,
-      requiresRedirect: billingType === "UNDEFINED" || (!asaas.pixQrCode && !asaas.pixCopyPaste && Boolean(asaas.invoiceUrl)),
+      charged,
+      requiresRedirect: Boolean(asaas.invoiceUrl),
     });
   } catch (error) {
     if (contributionId) {
       try {
-        await dbQuery(
-          `update public.gift_contributions
-           set payment_status = 'failed'
-           where id = $1 and payment_status = 'pending'`,
-          [contributionId],
-        );
+        await supabase.rpc("fail_pending_contribution", {
+          p_contribution_id: contributionId,
+        });
       } catch {
         // ignore cleanup errors
       }
     }
 
-    let message =
+    const message =
       error instanceof Error ? error.message : "Erro ao criar pagamento";
-
-    if (message.toLowerCase().includes("cartão") || message.toLowerCase().includes("creditcard") || message.toLowerCase().includes("nao autorizada") || message.toLowerCase().includes("não autorizada")) {
-      message =
-        "Cartão não autorizado pela operadora. Confira os dados ou tente outro cartão. Em produção, cartões de teste da Asaas não funcionam.";
-    }
 
     return NextResponse.json({ error: message }, { status: 400 });
   }

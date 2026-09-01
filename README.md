@@ -1,4 +1,4 @@
-# Presentes e Convites — Casamento Online
+# Presentes e Convites: Casamento Online
 
 Plataforma de convites personalizados, confirmação de presença e lista de presentes com Pix/cartão (Asaas) + painel admin em tempo real (Supabase).
 
@@ -28,8 +28,8 @@ node scripts/seed-admin.mjs
 
 Padrão:
 
-- e-mail: `admin@casamento.local`
-- senha: `Casamento2026!`
+- e-mail: `rafaelly@gmail.com`
+- senha: `123`
 
 ### Schema / seeds
 
@@ -40,11 +40,11 @@ node scripts/seed-gifts.mjs
 
 ## Rotas
 
-- `/admin` — painel
-- `/casamento/[slug]` — convite personalizado
-- `/presentes?guest=slug` — lista de presentes
-- `/api/payments/create` — cria cobrança Asaas
-- `/api/payments/webhook?token=ASAAS_WEBHOOK_TOKEN` — webhook Asaas
+- `/admin`: painel
+- `/casamento/[slug]`: convite personalizado
+- `/presentes?guest=slug`: lista de presentes
+- `/api/payments/create`: cria cobrança Asaas
+- `/api/payments/webhook?token=ASAAS_WEBHOOK_TOKEN`: webhook Asaas
 
 ## Pagamentos Asaas
 
@@ -59,4 +59,4 @@ Defina `ASAAS_API_KEY_B64` no `.env.local`.
 
 - **Pix:** gera QR + copia-e-cola (exige chave Pix ativa na conta Asaas)
 - **Crédito:** cobrança direta (cartão real; cartões de teste só no sandbox)
-- **Débito:** Asaas não tem `DEBIT_CARD` — abrimos o checkout hospedado (`invoiceUrl`)
+- **Débito:** Asaas não tem `DEBIT_CARD`; abrimos o checkout hospedado (`invoiceUrl`)

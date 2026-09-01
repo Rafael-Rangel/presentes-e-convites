@@ -6,12 +6,15 @@ import {
   toggleGiftStatusAction,
   updateGiftAction,
 } from "@/actions/gifts";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { GiftCover } from "@/components/gifts/gift-cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
 import type { GiftWithProgress } from "@/lib/types";
+import { Check } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -74,8 +77,14 @@ export function GiftsManager({ gifts }: { gifts: GiftWithProgress[] }) {
           />
         </div>
         <div className="md:col-span-2">
-          <Label>URL da imagem</Label>
-          <Input name="image_url" defaultValue={editing?.image_url || ""} />
+          <ImageUploadField
+            key={editing?.id || "new-gift"}
+            name="image_url"
+            label="Imagem do presente"
+            defaultValue={editing?.image_url || ""}
+            folder="gifts"
+            hint="Toque para escolher da galeria/câmera ou cole uma URL"
+          />
         </div>
         <div className="md:col-span-2">
           <Label>Descrição</Label>
@@ -122,10 +131,17 @@ export function GiftsManager({ gifts }: { gifts: GiftWithProgress[] }) {
         {gifts.length === 0 ? (
           <p className="text-muted md:col-span-3">Nenhum presente cadastrado.</p>
         ) : (
-          gifts.map((gift) => (
+          gifts.map((gift) => {
+            const gifted =
+              gift.percent >= 100 || gift.status === "completed";
+            return (
             <article
               key={gift.id}
-              className="rounded-2xl border border-black/5 bg-white/70 p-4"
+              className={`rounded-2xl border bg-white/70 p-4 ${
+                gifted
+                  ? "border-emerald-300/60 bg-emerald-50/30"
+                  : "border-black/5"
+              }`}
             >
               {gift.image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -135,16 +151,27 @@ export function GiftsManager({ gifts }: { gifts: GiftWithProgress[] }) {
                   className="mb-3 h-40 w-full rounded-xl object-cover"
                 />
               ) : (
-                <div className="mb-3 flex h-40 items-center justify-center rounded-xl bg-sand-deep text-muted">
-                  Sem imagem
-                </div>
+                <GiftCover
+                  name={gift.name}
+                  category={gift.category}
+                  urgent={gift.is_priority}
+                  className="mb-3 h-40 rounded-xl sm:h-40"
+                />
               )}
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-display text-2xl">{gift.name}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-display text-2xl">{gift.name}</h3>
+                    {gifted ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        <Check size={12} strokeWidth={2.5} aria-hidden />
+                        Presenteado
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-sm text-muted">
                     {gift.category || "Geral"}
-                    {gift.is_priority ? " · Prioridade" : ""}
+                    {gift.is_priority && !gifted ? " · Prioridade" : ""}
                   </p>
                 </div>
                 <p className="font-medium text-terra-deep">
@@ -199,7 +226,8 @@ export function GiftsManager({ gifts }: { gifts: GiftWithProgress[] }) {
                 </Button>
               </div>
             </article>
-          ))
+            );
+          })
         )}
       </div>
     </div>

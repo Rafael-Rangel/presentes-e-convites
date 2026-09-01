@@ -9,9 +9,13 @@ export type WeddingSettings = {
   hero_image?: string;
   story?: string;
   ceremony_time?: string;
+  arrival_time?: string;
+  /** Chegada de padrinhos / quem participa da cerimônia */
+  ceremony_arrival_time?: string;
   reception_time?: string;
   dress_code?: string;
   additional_info?: string;
+  address?: string;
   gallery?: string[];
   map_url?: string;
   welcome_message?: string;
@@ -40,6 +44,10 @@ export type Guest = {
   dietary: string | null;
   notes: string | null;
   rsvp_notes: string | null;
+  category: string | null;
+  seat_price: number;
+  is_paying: boolean;
+  party_size: number;
   first_accessed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -73,6 +81,8 @@ export type GiftContribution = {
   pix_qr_code: string | null;
   pix_copy_paste: string | null;
   invoice_url: string | null;
+  payer_phone: string | null;
+  payer_cpf: string | null;
   created_at: string;
   paid_at: string | null;
 };
