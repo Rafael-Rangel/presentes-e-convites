@@ -84,17 +84,18 @@ export async function listGifts(weddingId: string, publicOnly = false) {
     query = query.in("status", ["active", "completed"]);
   }
   const { data, error } = await query
-    .order("status", { ascending: true })
     .order("is_priority", { ascending: false })
     .order("name");
   await handleSupabaseError(error, { admin: !publicOnly });
-  // completed primeiro na grade pública; active depois
+  // urgentes (ainda não doados) primeiro; depois presenteados; depois o restante
   const gifts = (data || []) as Gift[];
   return [...gifts].sort((a, b) => {
+    const aUrgent = a.is_priority && a.status !== "completed";
+    const bUrgent = b.is_priority && b.status !== "completed";
+    if (aUrgent !== bUrgent) return aUrgent ? -1 : 1;
     const aDone = a.status === "completed" ? 0 : 1;
     const bDone = b.status === "completed" ? 0 : 1;
     if (aDone !== bDone) return aDone - bDone;
-    if (a.is_priority !== b.is_priority) return a.is_priority ? -1 : 1;
     return a.name.localeCompare(b.name, "pt-BR");
   });
 }

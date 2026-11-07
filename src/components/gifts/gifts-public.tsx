@@ -282,10 +282,12 @@ export function GiftsPublic({ gifts, guestSlug, guestName, coupleNames }: Props)
       );
     }
     const sorted = [...list].sort((a, b) => {
+      const aUrgent = a.is_priority && !isGifted(a);
+      const bUrgent = b.is_priority && !isGifted(b);
+      if (aUrgent !== bUrgent) return aUrgent ? -1 : 1;
       const aGifted = isGifted(a);
       const bGifted = isGifted(b);
       if (aGifted !== bGifted) return aGifted ? -1 : 1;
-      if (a.is_priority !== b.is_priority) return a.is_priority ? -1 : 1;
       return Number(b.price) - Number(a.price);
     });
     return openDonation ? [openDonation, ...sorted] : sorted;
