@@ -1,23 +1,21 @@
 export const SEAT_PRICE = 175;
-/** Cortesia fixa do salão — sempre 24, independente da lista. */
-export const VENUE_COURTESY = 24;
-export const PARTY_ALREADY_PAID = 6194;
+/** Cortesia fixa do salão — sempre 20, independente da lista. */
+export const VENUE_COURTESY = 20;
+/** Vagas livres do presente do pai (10 no total − 6 já nomeadas na lista). */
+export const FATHER_COURTESY_REMAINING = 4;
+export const PARTY_ALREADY_PAID = 9400;
+/** Dia de vencimento de cada parcela. */
+export const PAYMENT_DUE_DAY = 10;
 
-export const PAYMENT_MONTH_LABELS = [
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-] as const;
+export const PAYMENT_MONTH_LABELS = ["Novembro", "Dezembro"] as const;
 
 /** @deprecated Use summarizeGuestFinance().payableAmount — total agora é dinâmico. */
-export const PARTY_TOTAL = 21175;
+export const PARTY_TOTAL = 21350;
 
 /** @deprecated Use summarizeGuestFinance().paymentMonths */
 export const PAYMENT_MONTHS = PAYMENT_MONTH_LABELS.map((label) => ({
   label,
-  amount: 2996.2,
+  amount: 5975,
 }));
 
 export const GUEST_CATEGORIES = [
@@ -160,13 +158,14 @@ function splitInstallments(remaining: number) {
   const extra = cents - base * count;
   return labels.map((label, index) => ({
     label,
+    dueDay: PAYMENT_DUE_DAY,
     amount: (base + (index < extra ? 1 : 0)) / 100,
   }));
 }
 
 /**
  * Conta sincronizada com a lista (usa party_size de cada convite):
- * pessoas que você paga = total − não pagantes − 24 cortesia (fixas).
+ * pessoas que você paga = total − não pagantes − cortesia salão − vagas livres do pai.
  * Convites agrupados continuam 1 link; a contagem usa o nº de pessoas.
  */
 export function summarizeGuestFinance(guests: GuestFinanceRow[]) {
@@ -198,12 +197,19 @@ export function summarizeGuestFinance(guests: GuestFinanceRow[]) {
     .reduce((sum, g) => sum + guestPartySize(g), 0);
   const listPaying = totalPeople - listNonPaying;
   const venueCourtesy = VENUE_COURTESY;
-  const totalNonBillable = listNonPaying + venueCourtesy;
-  const payingPeople = Math.max(0, totalPeople - listNonPaying - venueCourtesy);
+  const fatherCourtesyRemaining = FATHER_COURTESY_REMAINING;
+  const totalNonBillable =
+    listNonPaying + venueCourtesy + fatherCourtesyRemaining;
+  const payingPeople = Math.max(
+    0,
+    totalPeople - listNonPaying - venueCourtesy - fatherCourtesyRemaining,
+  );
   const theoreticalTotal = totalPeople * SEAT_PRICE;
   const listFreeAmount = listNonPaying * SEAT_PRICE;
   const courtesyAmount = venueCourtesy * SEAT_PRICE;
-  const discountTotal = listFreeAmount + courtesyAmount;
+  const fatherRemainingAmount = fatherCourtesyRemaining * SEAT_PRICE;
+  const discountTotal =
+    listFreeAmount + courtesyAmount + fatherRemainingAmount;
   const payableAmount = payingPeople * SEAT_PRICE;
   const remainingAmount = Math.max(0, payableAmount - PARTY_ALREADY_PAID);
   const paymentMonths = splitInstallments(remainingAmount);
@@ -219,18 +225,21 @@ export function summarizeGuestFinance(guests: GuestFinanceRow[]) {
     listNonPaying,
     listPaying,
     venueCourtesy,
+    fatherCourtesyRemaining,
     totalNonBillable,
     payingPeople,
     seatPrice: SEAT_PRICE,
     theoreticalTotal,
     listFreeAmount,
     courtesyAmount,
+    fatherRemainingAmount,
     discountTotal,
     payableAmount,
     alreadyPaid: PARTY_ALREADY_PAID,
     remainingAmount,
     installmentCount: paymentMonths.length,
     installmentAmount: paymentMonths[0]?.amount ?? 0,
+    paymentDueDay: PAYMENT_DUE_DAY,
     paymentMonths,
   };
 }

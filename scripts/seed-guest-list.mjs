@@ -7,7 +7,8 @@ config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 
 const WEDDING_ID = "11111111-1111-1111-1111-111111111111";
 const SEAT_PRICE = 175;
-const VENUE_COURTESY = 24;
+const VENUE_COURTESY = 20;
+const FATHER_COURTESY_REMAINING = 4;
 
 /** @type {Record<string, { name: string; pays?: boolean }[]>} */
 const LISTS = {
@@ -299,13 +300,17 @@ try {
   );
   const total = rows.length;
   const nonPaying = rows.filter((r) => !r.is_paying).length;
-  const paying = Math.max(0, total - nonPaying - VENUE_COURTESY);
+  const paying = Math.max(
+    0,
+    total - nonPaying - VENUE_COURTESY - FATHER_COURTESY_REMAINING,
+  );
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 
   console.log("Categorias:", counts);
   console.log("TOTAL GERAL:", total);
   console.log("NÃO PAGANTES DA LISTA:", nonPaying);
   console.log("CORTESIA SALÃO:", VENUE_COURTESY);
+  console.log("PRESENTE PAI (LIVRES):", FATHER_COURTESY_REMAINING);
   console.log("PAGANTES (após cortesia):", paying);
   console.log("VALOR PAGANTES:", paying * SEAT_PRICE);
   console.log(

@@ -172,12 +172,12 @@ export function GuestsManager({
         <SummaryCard
           label="Total na festa"
           value={String(finance.totalPeople)}
-          hint={`${finance.inviteCount} convites · ${finance.listNonPaying} não pagam · ${finance.venueCourtesy} cortesia`}
+          hint={`${finance.inviteCount} convites · ${finance.listNonPaying} não pagam · salão ${finance.venueCourtesy} · pai ${finance.fatherCourtesyRemaining}`}
         />
         <SummaryCard
           label="Você paga"
           value={String(finance.payingPeople)}
-          hint={`${finance.totalPeople} − ${finance.listNonPaying} − ${finance.venueCourtesy} cortesia`}
+          hint={`${finance.totalPeople} − ${finance.listNonPaying} − ${finance.venueCourtesy} − ${finance.fatherCourtesyRemaining}`}
         />
         <SummaryCard
           label="Valor a pagar"
@@ -195,17 +195,19 @@ export function GuestsManager({
         <div className="overflow-x-auto rounded-2xl border border-black/5 bg-white/70">
           <div className="border-b border-black/5 px-4 py-3">
             <h2 className="font-display text-2xl text-terra-deep">
-              Parcelas (ago–dez)
+              Parcelas (nov–dez)
             </h2>
             <p className="text-xs text-muted">
               Dividindo {formatCurrency(finance.remainingAmount)} em{" "}
-              {finance.installmentCount} meses
+              {finance.installmentCount} meses · vencimento dia{" "}
+              {finance.paymentDueDay}
             </p>
           </div>
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-black/5 text-muted">
               <tr>
                 <th className="px-4 py-3">Mês</th>
+                <th className="px-4 py-3">Vencimento</th>
                 <th className="px-4 py-3">Pagamento</th>
               </tr>
             </thead>
@@ -213,6 +215,9 @@ export function GuestsManager({
               {finance.paymentMonths.map((month) => (
                 <tr key={month.label} className="border-b border-black/5">
                   <td className="px-4 py-3">{month.label}</td>
+                  <td className="px-4 py-3">
+                    Dia {month.dueDay ?? finance.paymentDueDay}
+                  </td>
                   <td className="px-4 py-3 font-medium">
                     {formatCurrency(month.amount)}
                   </td>
@@ -220,6 +225,7 @@ export function GuestsManager({
               ))}
               <tr className="bg-sand/60 font-semibold">
                 <td className="px-4 py-3">Total</td>
+                <td className="px-4 py-3" />
                 <td className="px-4 py-3">
                   {formatCurrency(finance.remainingAmount)}
                 </td>
@@ -235,13 +241,17 @@ export function GuestsManager({
               Total na lista: {finance.totalPeople} pessoas
             </li>
             <li>
-              Não pagantes: {finance.listNonPaying} · Cortesia do salão:{" "}
-              {finance.venueCourtesy} (fixa)
+              Não pagantes na lista: {finance.listNonPaying} (pais, crianças e
+              presente do pai nomeados)
+            </li>
+            <li>
+              Cortesia do salão: {finance.venueCourtesy} · Presente do pai
+              (livres): {finance.fatherCourtesyRemaining}
             </li>
             <li>
               Você paga: {finance.payingPeople} pessoas (
               {finance.totalPeople} − {finance.listNonPaying} −{" "}
-              {finance.venueCourtesy})
+              {finance.venueCourtesy} − {finance.fatherCourtesyRemaining})
             </li>
             <li>Total da festa: {formatCurrency(finance.payableAmount)}</li>
             <li>Já pago: {formatCurrency(finance.alreadyPaid)}</li>
@@ -249,7 +259,8 @@ export function GuestsManager({
               Falta pagar: {formatCurrency(finance.remainingAmount)}
             </li>
             <li>
-              {finance.installmentCount} meses: agosto a dezembro
+              {finance.installmentCount} parcelas: novembro e dezembro (dia{" "}
+              {finance.paymentDueDay})
             </li>
             <li>Por mês: {formatCurrency(finance.installmentAmount)}</li>
           </ul>
@@ -301,8 +312,14 @@ export function GuestsManager({
             {formatCurrency(SEAT_PRICE)} = {formatCurrency(finance.courtesyAmount)}
           </p>
           <p>
-            {finance.totalPeople} − {finance.listNonPaying} − {finance.venueCourtesy}{" "}
-            = {finance.payingPeople} pessoas que você paga
+            Presente do pai (vagas livres): {finance.fatherCourtesyRemaining} ×{" "}
+            {formatCurrency(SEAT_PRICE)} ={" "}
+            {formatCurrency(finance.fatherRemainingAmount)}
+          </p>
+          <p>
+            {finance.totalPeople} − {finance.listNonPaying} −{" "}
+            {finance.venueCourtesy} − {finance.fatherCourtesyRemaining} ={" "}
+            {finance.payingPeople} pessoas que você paga
           </p>
           <p className="font-semibold text-terra-deep">
             Final a pagar: {finance.payingPeople} × {formatCurrency(SEAT_PRICE)} ={" "}
