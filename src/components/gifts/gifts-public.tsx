@@ -262,10 +262,13 @@ export function GiftsPublic({ gifts, guestSlug, guestName, coupleNames }: Props)
       .map(([name, count]) => ({ name, count }));
   }, [catalog]);
 
+  const isGifted = (gift: GiftWithProgress) =>
+    gift.percent >= 100 || gift.status === "completed";
+
   const priority = useMemo(
     () =>
       catalog
-        .filter((g) => g.is_priority)
+        .filter((g) => g.is_priority && !isGifted(g))
         .sort((a, b) => Number(b.price) - Number(a.price)),
     [catalog],
   );
@@ -279,6 +282,9 @@ export function GiftsPublic({ gifts, guestSlug, guestName, coupleNames }: Props)
       );
     }
     const sorted = [...list].sort((a, b) => {
+      const aGifted = isGifted(a);
+      const bGifted = isGifted(b);
+      if (aGifted !== bGifted) return aGifted ? -1 : 1;
       if (a.is_priority !== b.is_priority) return a.is_priority ? -1 : 1;
       return Number(b.price) - Number(a.price);
     });
